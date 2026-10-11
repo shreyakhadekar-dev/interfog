@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>INTERFOG</title>
+<meta name="description" content="Probability-of-completion scheduling for fog nodes that run on harvested energy.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='11' y='3' width='10' height='26' rx='5' fill='%2310262b'/%3E%3Crect x='11' y='15' width='10' height='14' rx='5' fill='%23e8a200'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e6ebeb; --panel:#f7f9f8; --panel-2:#edf1f0; --ink:#10262b; --soft:#4a6066; --line:#cbd6d5;
+  --amber:#e8a200; --amber-d:#b97f00; --safe:#1f8a70; --risk:#c6432b; --warn:#b97f00;
+  --n1:#1f8a70; --n2:#e8a200; --n3:#4b5fbf; --n4:#c6432b; --n5:#8a4f9e; --n6:#5a7078;
+  --glass:rgba(16,38,43,.07); --shadow:0 1px 0 rgba(16,38,43,.04), 0 12px 30px -18px rgba(16,38,43,.35);
+  --display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif; --body:'Figtree','Segoe UI',system-ui,sans-serif;
+}
+:root[data-theme="dark"]{
+  --bg:#0a1518; --panel:#10252a; --panel-2:#0d1d21; --ink:#e3eeec; --soft:#8fa6a8; --line:#21383d;
+  --amber:#f2b01e; --amber-d:#f2b01e; --safe:#37b896; --risk:#ec6a50; --warn:#f2b01e;
+  --n1:#37b896; --n2:#f2b01e; --n3:#8394ec; --n4:#ec6a50; --n5:#c08bd3; --n6:#8fa6a8;
+  --glass:rgba(227,238,236,.08); --shadow:0 12px 30px -18px rgba(0,0,0,.7);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a1518; --panel:#10252a; --panel-2:#0d1d21; --ink:#e3eeec; --soft:#8fa6a8; --line:#21383d;
+    --amber:#f2b01e; --amber-d:#f2b01e; --safe:#37b896; --risk:#ec6a50; --warn:#f2b01e;
+    --n1:#37b896; --n2:#f2b01e; --n3:#8394ec; --n4:#ec6a50; --n5:#c08bd3; --n6:#8fa6a8;
+    --glass:rgba(227,238,236,.08); --shadow:0 12px 30px -18px rgba(0,0,0,.7);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--body);-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.08;letter-spacing:-.02em}
+p{margin:0}
+a{color:inherit}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* header */
+header.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:20px;height:58px}
+.brand{display:flex;align-items:center;gap:10px;font:800 20px var(--display);letter-spacing:-.02em;text-decoration:none}
+.brand svg{width:20px;height:26px}
+nav.links{display:flex;gap:4px;margin-left:12px}
+nav.links a{padding:6px 10px;border-radius:8px;text-decoration:none;color:var(--soft);font-weight:500;font-size:15px}
+nav.links a:hover{background:var(--glass);color:var(--ink)}
+.spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border:1px solid var(--line);border-radius:99px;background:var(--panel);font-size:13px;color:var(--soft)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--soft)}
+.dot.on{background:var(--safe);box-shadow:0 0 0 0 var(--safe);animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--safe) 55%,transparent)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.icon-btn{border:1px solid var(--line);background:var(--panel);width:36px;height:36px;border-radius:10px;cursor:pointer;display:grid;place-items:center}
+.icon-btn:hover{border-color:var(--soft)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:44px;padding:56px 0 40px;align-items:start}
+h1{font-size:clamp(38px,5.2vw,64px);font-weight:800;max-width:11.5em}
+.lede{color:var(--soft);font-size:18px;max-width:34em;margin:18px 0 26px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+.ctrl{padding:20px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ctrl label,.lbl{font-weight:600;font-size:15px}
+.val{font:800 28px var(--display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.val small{font:500 15px var(--body);color:var(--soft);margin-left:3px}
+input[type=range]{width:100%;margin:10px 0 4px;accent-color:var(--amber);height:28px;cursor:pointer}
+.seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;padding:7px 12px;border-radius:9px;cursor:pointer;font-weight:500;font-size:14px;color:var(--soft)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.seg button:not([aria-pressed=true]):hover{color:var(--ink)}
+.btn{border:0;background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:12px;font-weight:600;cursor:pointer;transition:transform .15s}
+.btn:hover{transform:translateY(-1px)}
+.btn:disabled{opacity:.55;cursor:wait;transform:none}
+.btn.amber{background:var(--amber);color:#2a1d00}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.field{display:flex;flex-direction:column;gap:6px;margin-top:16px}
+.field .row{margin-bottom:-2px}
+input[type=number]{width:92px;padding:7px 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);text-align:right;font-variant-numeric:tabular-nums}
+
+/* decision */
+.decision{margin-top:16px;padding:18px 20px}
+.decision .empty{color:var(--soft)}
+.act{display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:99px;background:var(--ink);color:var(--bg);font-weight:600;font-size:14px}
+.decision h3{font-size:24px;margin:10px 0 6px}
+.decision .why{color:var(--soft);margin-bottom:14px}
+.cands{display:grid;gap:7px}
+.cand{display:grid;grid-template-columns:56px 1fr 46px;gap:10px;align-items:center;font-size:14px}
+.cand .track{height:8px;border-radius:99px;background:var(--glass);overflow:hidden}
+.cand .track i{display:block;height:100%;border-radius:99px;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.cand b{text-align:right;font-variant-numeric:tabular-nums}
+.cand.chosen span:first-child{font-weight:700}
+.cand.out{opacity:.5}
+
+/* tubes */
+.tubes{padding:22px 20px 18px}
+.tubes-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px}
+.tubes-head h2{font-size:22px}
+.tubes-head span{color:var(--soft);font-size:14px}
+.tube-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:10px}
+.node{position:relative;padding:12px 6px 10px;border-radius:14px;text-align:center;transition:background .3s,box-shadow .3s}
+.node.chosen{background:var(--panel-2);box-shadow:inset 0 0 0 2px var(--ink)}
+.tube{position:relative;width:52px;height:210px;margin:0 auto 10px;border-radius:26px;background:var(--glass);box-shadow:inset 0 0 0 1.5px var(--line);overflow:hidden}
+.tube .fill{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,color-mix(in srgb,var(--amber) 80%,#fff),var(--amber));transition:height 1.2s cubic-bezier(.2,.8,.2,1)}
+.tube .fill::after{content:"";position:absolute;left:0;right:0;top:-1px;height:3px;background:rgba(255,255,255,.55)}
+.tube .burn{position:absolute;left:0;right:0;transition:bottom .35s ease,height .35s ease;background:repeating-linear-gradient(135deg,rgba(16,38,43,.55) 0 3px,transparent 3px 7px)}
+.tube .burn.dead{background:repeating-linear-gradient(135deg,var(--risk) 0 3px,rgba(198,67,43,.18) 3px 7px)}
+.tube .reserve{position:absolute;left:0;right:0;bottom:5%;border-top:1.5px dashed var(--soft);opacity:.7}
+.nid{font:700 17px var(--display)}
+.src{font-size:13px;color:var(--soft)}
+.p{font:800 30px var(--display);letter-spacing:-.03em;margin-top:2px;font-variant-numeric:tabular-nums}
+.p small{font-size:16px;font-weight:600}
+.verdict{font-size:13px;font-weight:600}
+.life{font-size:12.5px;color:var(--soft)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--soft);align-items:center}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+/* sections */
+section{padding:44px 0}
+section>.wrap>h2{font-size:clamp(28px,3.4vw,40px);font-weight:800;max-width:18em}
+.sec-sub{color:var(--soft);max-width:44em;margin:10px 0 22px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.pad{padding:20px}
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{font:500 12px var(--body);fill:var(--soft)}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);padding:8px 10px;border-radius:10px;font-size:13px;line-height:1.4;display:none;min-width:120px;z-index:3}
+.tip b{font-variant-numeric:tabular-nums}
+.keys{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-size:14px;font-weight:600}
+.keys span{display:inline-flex;align-items:center;gap:7px}
+.keys i{width:16px;height:4px;border-radius:2px;display:inline-block}
+
+.scn{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.scn button{border:1px solid var(--line);background:var(--panel);padding:8px 12px;border-radius:12px;cursor:pointer;text-align:left;line-height:1.25;font-weight:600;font-size:14px}
+.scn button small{display:block;font-weight:400;color:var(--soft);font-size:12.5px}
+.scn button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.scn button[aria-pressed=true] small{color:inherit;opacity:.75}
+.bars{display:grid;gap:14px;margin-top:6px}
+.bar-row{display:grid;grid-template-columns:150px 1fr 64px;gap:12px;align-items:center}
+.bar-row .name{font-weight:600;font-size:15px;line-height:1.2}
+.bar-row .name small{display:block;font-weight:400;color:var(--soft);font-size:12.5px}
+.bar-row .track{height:22px;border-radius:8px;background:var(--glass);overflow:hidden}
+.bar-row .track i{display:block;height:100%;width:0;border-radius:8px;background:var(--n6);transition:width .9s cubic-bezier(.2,.8,.2,1)}
+.bar-row.us .track i{background:var(--safe)}
+.bar-row .pct{font:800 22px var(--display);text-align:right;font-variant-numeric:tabular-nums}
+.note{color:var(--soft);font-size:14px}
+.stat-line{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;font-size:14px;color:var(--soft)}
+.stat-line b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th{font-weight:600;color:var(--soft);font-size:14px}
+td.best{color:var(--safe);font-weight:700}
+
+.feed{display:grid;gap:0;max-height:300px;overflow:auto}
+.feed .item{display:grid;grid-template-columns:150px 1fr 56px;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:14px;align-items:center}
+.feed .item:last-child{border:0}
+.feed .item .a{font-weight:600}
+.feed .item .r{color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feed .item b{text-align:right;font-variant-numeric:tabular-nums}
+footer{padding:36px 0 56px;color:var(--soft);font-size:14px;border-top:1px solid var(--line);margin-top:30px}
+footer .wrap{display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;opacity:0;transition:.25s;z-index:50;font-size:14px;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%)}
+
+@media (max-width:960px){
+  .hero{grid-template-columns:1fr;gap:28px;padding-top:36px}
+  .grid2{grid-template-columns:1fr}
+  nav.links{display:none}
+  .bar-row{grid-template-columns:110px 1fr 56px}
+}
+@media (max-width:520px){
+  .chip.status span.txt{display:none}
+  .feed .item{grid-template-columns:1fr 50px}
+  .feed .item .r{display:none}
+  .tube{height:170px;width:44px}
+  .p{font-size:24px}
+  .life{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap bar">
+    <a class="brand" href="#top" aria-label="INTERFOG home">
+      <svg viewBox="0 0 20 26" aria-hidden="true"><rect x="1" y="1" width="18" height="24" rx="9" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="12" width="12" height="10" rx="6" fill="var(--amber)"/></svg>
+      INTERFOG
+    </a>
+    <nav class="links" aria-label="Sections">
+      <a href="#top">Live nodes</a><a href="#curves">Survival curves</a><a href="#sim">Simulator</a><a href="#models">Models</a><a href="/docs">API</a>
+    </nav>
+    <div class="spacer"></div>
+    <span class="chip status"><span class="dot" id="dot"></span><span class="txt" id="status">connecting</span></span>
+    <button class="icon-btn" id="theme" aria-label="Switch colour theme" title="Switch colour theme">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="top">
+<div class="wrap hero">
+  <div>
+    <h1>Will the task finish before the battery runs dry?</h1>
+    <p class="lede">These fog nodes live on harvested sunlight, vibration and radio waves. INTERFOG works out the chance each one stays powered long enough, then sends the work where it is most likely to finish.</p>
+
+    <div class="card ctrl">
+      <div class="row"><label for="tau">How long the task runs</label><span class="val"><span id="tauv">8</span><small>seconds</small></span></div>
+      <input id="tau" type="range" min="1" max="60" step="1" value="8">
+      <div class="field">
+        <div class="row"><label for="dl">Deadline</label><span><input id="dl" type="number" min="1" max="600" value="25"> <span class="note">seconds</span></span></div>
+      </div>
+      <div class="field">
+        <span class="lbl" id="crit-l">How much it matters</span>
+        <div class="seg" role="group" aria-labelledby="crit-l" id="crit">
+          <button data-v="best_effort" aria-pressed="false">Best effort</button>
+          <button data-v="deadline_critical" aria-pressed="true">Deadline critical</button>
+          <button data-v="life_critical" aria-pressed="false">Life critical</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:20px">
+        <button class="btn amber" id="place">Place this task</button>
+        <span class="note" id="needs"></span>
+      </div>
+    </div>
+
+    <div class="card decision" id="decision" aria-live="polite">
+      <p class="empty">Place a task and this card shows where it goes, which of the six actions was chosen, and why.</p>
+    </div>
+  </div>
+
+  <div class="card tubes">
+    <div class="tubes-head"><h2>Your fog nodes, live</h2><span id="clock"></span></div>
+    <div class="tube-grid" id="tubes"></div>
+    <div class="legend">
+      <span><i style="background:var(--amber)"></i>stored energy</span>
+      <span><i style="background:repeating-linear-gradient(135deg,rgba(16,38,43,.55) 0 3px,transparent 3px 7px)"></i>energy this task burns</span>
+      <span><i style="background:repeating-linear-gradient(135deg,var(--risk) 0 3px,rgba(198,67,43,.18) 3px 7px)"></i>runs the node dry</span>
+    </div>
+  </div>
+</div>
+
+<section id="curves">
+  <div class="wrap">
+    <h2>How long each node is likely to last</h2>
+    <p class="sec-sub">Each line is the chance a node is still powered after that many seconds. Steep lines belong to nodes that are close to empty. The dashed marker follows the task length you picked above.</p>
+    <div class="card pad chart" id="curve-card">
+      <div class="keys" id="curve-keys"></div>
+      <div id="curve"></div>
+      <div class="tip" id="tip"></div>
+    </div>
+  </div>
+</section>
+
+<section id="sim">
+  <div class="wrap">
+    <h2>Does it actually beat simpler schedulers?</h2>
+    <p class="sec-sub">Pick a situation, then run 1,000 random tasks through five strategies. Every strategy gets the same tasks and the same hidden battery luck, so the comparison is fair.</p>
+    <div class="scn" id="scn" role="group" aria-label="Scenario"></div>
+    <div class="grid2">
+      <div class="card pad">
+        <div class="row" style="margin-bottom:6px"><h3 style="font-size:22px">Tasks that finished</h3>
+          <button class="btn" id="run">Run 1,000 tasks</button></div>
+        <p class="note" id="scn-blurb" style="margin-bottom:12px"></p>
+        <div class="bars" id="bars"><p class="note">Results appear here.</p></div>
+        <div class="stat-line" id="sim-stats"></div>
+      </div>
+      <div class="card pad">
+        <h3 style="font-size:22px">Can you trust the percentages?</h3>
+        <p class="note" style="margin:6px 0 10px">A forecast of 80% should come true about 80% of the time. Dots on the diagonal mean honest numbers.</p>
+        <div class="chart" id="rel"></div>
+        <div class="stat-line" id="rel-stats"></div>
+        <div class="row" style="margin-top:14px;justify-content:flex-start;gap:10px;flex-wrap:wrap">
+          <button class="btn ghost" id="load">Use this scenario for the live nodes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="models">
+  <div class="wrap">
+    <h2>Pick the brain behind the percentages</h2>
+    <p class="sec-sub">Start with a plain energy-balance formula, or train three survival models (Weibull, Cox, DeepSurv) on synthetic node lifetimes. Switching changes every number on this page.</p>
+    <div class="grid2">
+      <div class="card pad">
+        <div class="row" style="flex-wrap:wrap;margin-bottom:14px"><h3 style="font-size:22px">Active model</h3>
+          <button class="btn" id="train">Train survival models</button></div>
+        <div class="seg" id="model-seg" role="group" aria-label="Active model"></div>
+        <p class="note" id="model-note" style="margin-top:12px"></p>
+        <table id="report" style="margin-top:14px;display:none">
+          <thead><tr><th>Model</th><th>C-index</th><th>Brier</th></tr></thead><tbody></tbody>
+        </table>
+      </div>
+      <div class="card pad">
+        <h3 style="font-size:22px">Recent decisions</h3>
+        <p class="note" style="margin:6px 0 10px">Every task placed from this page or the API shows up here live.</p>
+        <div class="feed" id="feed"><p class="note">Nothing yet.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>INTERFOG, probability-of-completion orchestration for intermittently powered fog nodes.</span>
+    <span><a href="/docs">Interactive API docs</a> &nbsp;·&nbsp; <a href="/health">Health</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api = (path, opts) => fetch('/api/v1' + path, opts && opts.body ? {method:'POST', headers:{'Content-Type':'application/json'}, ...opts, body: JSON.stringify(opts.body)} : opts)
+  .then(async r => { if (!r.ok) { let m = r.statusText; try { m = (await r.json()).detail || m } catch(e){} throw new Error(typeof m === 'string' ? m : JSON.stringify(m)); } return r.json(); });
+const NODE_COLORS = ['var(--n1)','var(--n2)','var(--n3)','var(--n4)','var(--n5)','var(--n6)'];
+const ACTIONS = {execute:'Run on one node', delay:'Wait for energy', checkpoint_migrate:'Checkpoint and move', replicate:'Run on several nodes', offload_peer:'Offload to a peer', cloud_fallback:'Send to the cloud'};
+const POLICIES = [
+  ['latency','Latency only','picks the fastest node'],['energy','Most charged','picks the fullest battery'],['random','Random','any free node'],
+  ['interfog','INTERFOG','picks by completion odds'],['interfog_calibrated','INTERFOG + calibration','odds corrected from past results']];
+const store = {nodes:[], probs:{}, chosen:null, tau:8, crit:'deadline_critical', scenario:'S3', lastTask:null, lastDecision:null};
+const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 3600); };
+const risk = p => p >= .85 ? ['var(--safe)','likely'] : p >= .6 ? ['var(--warn)','risky'] : ['var(--risk)','unlikely'];
+const pct = p => Math.round(p * 100);
+
+/* theme */
+(function(){ try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch(e){} })();
+$('#theme').onclick = () => {
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const cur = document.documentElement.dataset.theme || (dark ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('theme', next); } catch(e){}
+};
+
+/* ---------- nodes and tubes ---------- */
+function renderTubes() {
+  const tau = store.tau;
+  $('#tubes').innerHTML = store.nodes.map(n => {
+    const soc = n.battery_soc * 100;
+    const drain = Math.max(0, (n.consumption_power_w - n.harvest_power_w) * tau / n.capacity_j * 100);
+    const low = Math.max(0, soc - drain);
+    const dead = soc - drain < 5;
+    const p = store.probs[n.node_id];
+    const [col, word] = p == null ? ['var(--soft)','…'] : risk(p);
+    const life = n.consumption_power_w - n.harvest_power_w <= 1e-9 ? 'recharges as fast as it spends'
+      : 'empty in about ' + Math.round(Math.max(0, n.battery_soc - .05) * n.capacity_j / (n.consumption_power_w - n.harvest_power_w)) + ' s';
+    return `<div class="node ${store.chosen === n.node_id ? 'chosen' : ''}" data-id="${esc(n.node_id)}">
+      <div class="tube" role="img" aria-label="${esc(n.node_id)} battery ${Math.round(soc)} percent">
+        <div class="fill" style="height:${soc}%"></div>
+        <div class="burn ${dead ? 'dead' : ''}" style="bottom:${low}%;height:${soc - low}%"></div>
+        <div class="reserve"></div>
+      </div>
+      <div class="nid">${esc(n.node_id)}</div>
+      <div class="src">${esc(n.source)}, ${Math.round(soc)}% full</div>
+      <div class="p" style="color:${col}">${p == null ? '–' : pct(p)}<small>%</small></div>
+      <div class="verdict" style="color:${col}">${word}${store.chosen === n.node_id ? ', chosen' : ''}</div>
+      <div class="life">${life}</div>
+    </div>`;
+  }).join('');
+}
+let probTimer;
+function refreshProbs() {
+  clearTimeout(probTimer);
+  probTimer = setTimeout(async () => {
+    try {
+      const rows = await api('/availability?tau_s=' + store.tau);
+      store.probs = Object.fromEntries(rows.map(r => [r.node_id, r.probability]));
+      store.model = rows[0] ? rows[0].model : store.model;
+      renderTubes();
+    } catch (e) {}
+  }, 60);
+}
+function setNodes(nodes) { store.nodes = nodes; renderTubes(); refreshProbs(); $('#clock').textContent = 'updated ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}); }
+
+/* ---------- controls ---------- */
+const pmin = {best_effort:60, deadline_critical:85, life_critical:95};
+function updateNeeds() { $('#needs').textContent = 'needs at least ' + pmin[store.crit] + '% odds'; }
+$('#tau').addEventListener('input', e => {
+  store.tau = +e.target.value; $('#tauv').textContent = store.tau;
+  const dl = $('#dl'); if (+dl.value < store.tau + 2 || dl.dataset.auto !== 'off') dl.value = Math.round(store.tau * 2.5 + 5);
+  renderTubes(); refreshProbs(); drawCurves();
+});
+$('#dl').addEventListener('input', e => { e.target.dataset.auto = 'off'; });
+$('#crit').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  store.crit = b.dataset.v;
+  document.querySelectorAll('#crit button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  updateNeeds();
+});
+$('#place').onclick = async () => {
+  const btn = $('#place'); btn.disabled = true;
+  const task = {exec_time_s: store.tau, deadline_s: +$('#dl').value, criticality: store.crit};
+  try {
+    const d = await api('/tasks', {body: task});
+    store.lastTask = {...task, task_id: d.task_id}; store.lastDecision = d;
+    store.chosen = d.target_node_id; renderTubes(); renderDecision(d);
+  } catch (e) { toast('Could not place the task: ' + e.message); }
+  btn.disabled = false;
+};
+function renderDecision(d) {
+  const [col] = risk(d.p_complete);
+  const where = d.action === 'replicate' ? d.replica_node_ids.join(' + ') : d.target_node_id || 'later';
+  const cands = [...d.candidates].sort((a, b) => b.p_complete - a.p_complete);
+  const canReassess = ['execute','offload_peer'].includes(d.action) && d.target_node_id && d.target_node_id !== 'cloud';
+  $('#decision').innerHTML = `
+    <span class="act">${esc(ACTIONS[d.action] || d.action)}</span>
+    <h3>${d.action === 'delay' ? 'Retry in ' + Math.round(d.retry_after_s) + ' s' : 'Goes to ' + esc(where)} <span style="color:${col}">at ${pct(d.p_complete)}%</span></h3>
+    <p class="why">${esc(d.reason)}</p>
+    <div class="cands">${cands.map(c => {
+      const [cc] = risk(c.p_complete); const chosen = c.node_id === d.target_node_id || d.replica_node_ids.includes(c.node_id);
+      return `<div class="cand ${chosen ? 'chosen' : ''} ${c.saturated || c.violates_deadline ? 'out' : ''}"><span>${esc(c.node_id)}</span>
+        <div class="track"><i style="width:${pct(c.p_complete)}%;background:${cc}"></i></div><b>${pct(c.p_complete)}%</b></div>`; }).join('')}</div>
+    ${canReassess ? `<div class="row" style="justify-content:flex-start;margin-top:14px;gap:10px;flex-wrap:wrap"><button class="btn ghost" id="reassess">Check again halfway through</button><span class="note">Asks whether to checkpoint and move.</span></div>` : ''}`;
+  const rb = $('#reassess');
+  if (rb) rb.onclick = async () => {
+    try {
+      const t = store.lastTask, d2 = await api('/tasks/reassess', {body: {task: {task_id: t.task_id, exec_time_s: t.exec_time_s, deadline_s: t.deadline_s, criticality: t.criticality}, node_id: d.target_node_id, elapsed_s: t.exec_time_s / 2}});
+      store.chosen = d2.target_node_id; renderTubes(); renderDecision(d2);
+    } catch (e) { toast(e.message); }
+  };
+}
+
+/* ---------- survival curves ---------- */
+let curveData = null;
+async function loadCurves() {
+  try { curveData = await api('/survival-curves?max_tau_s=60&points=61'); drawCurves(); } catch (e) {}
+}
+function drawCurves() {
+  if (!curveData) return;
+  const W = 1000, H = 340, m = {l:46, r:16, t:12, b:34};
+  const x = t => m.l + t / 60 * (W - m.l - m.r), y = p => m.t + (1 - p) * (H - m.t - m.b);
+  const ids = Object.keys(curveData.curves);
+  let g = '';
+  for (let p = 0; p <= 1.001; p += .25) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(p)}" y2="${y(p)}" stroke="var(--line)"/><text x="${m.l - 8}" y="${y(p) + 4}" text-anchor="end">${pct(p)}%</text>`;
+  for (let t = 0; t <= 60; t += 10) g += `<text x="${x(t)}" y="${H - 10}" text-anchor="middle">${t} s</text>`;
+  const bars = [[.6,'--warn'],[.85,'--safe']].map(([p, c]) => `<line x1="${m.l}" x2="${W - m.r}" y1="${y(p)}" y2="${y(p)}" stroke="var(${c})" stroke-dasharray="2 6" opacity=".6"/>`).join('');
+  const lines = ids.map((id, i) => {
+    const pts = curveData.curves[id].map((p, k) => `${x(curveData.ts[k]).toFixed(1)},${y(p).toFixed(1)}`).join(' ');
+    return `<polyline points="${pts}" fill="none" stroke="${NODE_COLORS[i % 6]}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }).join('');
+  const mark = `<line x1="${x(store.tau)}" x2="${x(store.tau)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--ink)" stroke-dasharray="5 5"/><text x="${x(store.tau) + 6}" y="${m.t + 12}" style="fill:var(--ink);font-weight:600">your task, ${store.tau} s</text>`;
+  $('#curve').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Survival probability against time for each node">${g}${bars}${lines}${mark}<line id="hov" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="var(--soft)" opacity="0"/></svg>`;
+  $('#curve-keys').innerHTML = ids.map((id, i) => `<span><i style="background:${NODE_COLORS[i % 6]}"></i>${esc(id)}</span>`).join('') + `<span class="note" style="font-weight:400">dotted lines mark the 60% and 85% bars</span>`;
+  const svg = $('#curve svg'), tip = $('#tip');
+  svg.onmousemove = e => {
+    const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) / r.width * W;
+    const t = Math.max(0, Math.min(60, Math.round((px - m.l) / (W - m.l - m.r) * 60)));
+    const hov = $('#hov'); hov.setAttribute('x1', x(t)); hov.setAttribute('x2', x(t)); hov.setAttribute('opacity', 1);
+    tip.innerHTML = `<b>after ${t} s</b><br>` + ids.map((id, i) => `<span style="color:${NODE_COLORS[i % 6]}">●</span> ${esc(id)} <b>${pct(curveData.curves[id][t])}%</b>`).join('<br>');
+    tip.style.display = 'block';
+    const cr = $('#curve-card').getBoundingClientRect();
+    tip.style.left = Math.min(e.clientX - cr.left + 14, cr.width - 150) + 'px'; tip.style.top = (e.clientY - cr.top + 14) + 'px';
+  };
+  svg.onmouseleave = () => { tip.style.display = 'none'; $('#hov').setAttribute('opacity', 0); };
+}
+
+/* ---------- simulator ---------- */
+async function loadScenarios() {
+  const list = await api('/scenarios'); store.scenarios = list;
+  $('#scn').innerHTML = list.map(s => `<button data-id="${s.id}" aria-pressed="${s.id === store.scenario}">${esc(s.name)}<small>${s.id}, ${s.nodes} nodes</small></button>`).join('');
+  $('#scn-blurb').textContent = list.find(s => s.id === store.scenario).blurb;
+}
+$('#scn').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  store.scenario = b.dataset.id;
+  document.querySelectorAll('#scn button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  $('#scn-blurb').textContent = store.scenarios.find(s => s.id === store.scenario).blurb;
+});
+$('#run').onclick = async () => {
+  const btn = $('#run'); btn.disabled = true; btn.textContent = 'Running…';
+  try { renderSim(await api('/simulate', {body: {scenario: store.scenario, n_tasks: 1000}})); }
+  catch (e) { toast('Simulation failed: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Run 1,000 tasks';
+};
+function renderSim(r) {
+  $('#bars').innerHTML = POLICIES.filter(p => r.policies[p[0]]).map(([k, name, sub]) => {
+    const v = r.policies[k];
+    return `<div class="bar-row ${k.startsWith('interfog') ? 'us' : ''}"><div class="name">${name}<small>${sub}</small></div>
+      <div class="track"><i style="width:0" data-w="${v.completion_rate * 100}"></i></div><div class="pct">${(v.completion_rate * 100).toFixed(0)}%</div></div>`;
+  }).join('');
+  requestAnimationFrame(() => requestAnimationFrame(() => document.querySelectorAll('#bars i').forEach(i => i.style.width = i.dataset.w + '%')));
+  const a = r.policies.interfog, l = r.policies.latency;
+  $('#sim-stats').innerHTML = `<span>Energy lost to failed attempts: <b>${Math.round(l.wasted_energy_j)} J</b> latency only, <b>${Math.round(a.wasted_energy_j)} J</b> INTERFOG</span>
+    <span>Actions used: <b>${Object.entries(a.actions).map(([k, n]) => (ACTIONS[k] || k).toLowerCase() + ' ' + n).join(', ')}</b></span>`;
+  renderReliability(r.calibration);
+}
+function renderReliability(c) {
+  const S = 300, m = 36, inner = S - m - 12;
+  const X = v => m + v * inner, Y = v => 12 + (1 - v) * inner;
+  const series = (bins, color, cls) => bins.bins.filter(b => b.count > 0).map(b => {
+    const r = 3 + Math.min(7, Math.sqrt(b.count) / 2.2);
+    return `<circle cx="${X(b.mean_predicted)}" cy="${Y(b.observed_rate)}" r="${r}" fill="${color}" fill-opacity="${cls}" stroke="var(--panel)" stroke-width="1.5"/>`;
+  }).join('');
+  let g = '';
+  for (let v = 0; v <= 1.001; v += .25) g += `<line x1="${m}" x2="${S - 12}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${m - 6}" y="${Y(v) + 4}" text-anchor="end">${pct(v)}</text><text x="${X(v)}" y="${S - 6}" text-anchor="middle">${pct(v)}</text>`;
+  $('#rel').innerHTML = `<svg viewBox="0 0 ${S} ${S}" style="max-width:380px;margin:0 auto" role="img" aria-label="Reliability diagram: predicted against observed completion">${g}
+    <line x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}" stroke="var(--soft)" stroke-dasharray="4 4"/>
+    ${series(c.before, 'var(--risk)', .85)}${c.after ? series(c.after, 'var(--safe)', .85) : ''}
+    <text x="${m + 8}" y="26" style="fill:var(--ink);font-weight:600">observed</text><text x="${S - 14}" y="${S - 22}" text-anchor="end">predicted</text></svg>`;
+  const f = v => v == null ? 'n/a' : (v * 100).toFixed(1) + ' points';
+  $('#rel-stats').innerHTML = `<span><span style="color:var(--risk)">●</span> As predicted: <b>${f(c.before.ece)}</b> off on average</span>` +
+    (c.after ? `<span><span style="color:var(--safe)">●</span> After calibration: <b>${f(c.after.ece)}</b> off</span>` : '');
+}
+$('#load').onclick = async () => {
+  try { setNodes(await api('/scenarios/' + store.scenario + '/load', {method:'POST'})); loadCurves(); toast('Live nodes now follow ' + store.scenarios.find(s => s.id === store.scenario).name); }
+  catch (e) { toast(e.message); }
+};
+
+/* ---------- models ---------- */
+async function loadModels() {
+  const m = await api('/models');
+  store.model = m.active;
+  $('#model-seg').innerHTML = m.available.map(n => `<button data-n="${esc(n)}" aria-pressed="${m.active === n || (n === 'heuristic' && m.active.startsWith('energy'))}">${esc(n)}</button>`).join('');
+  $('#model-note').textContent = m.trained ? 'Currently using ' + m.active + '. Trained on ' + (m.report.n_train + m.report.n_val) + ' synthetic node lifetimes, ' + Math.round(m.report.censored_frac * 100) + '% still running when observed.'
+    : 'Currently using the energy-balance formula. Train the survival models to compare.';
+  const t = $('#report');
+  if (m.report) {
+    t.style.display = 'table';
+    t.querySelector('tbody').innerHTML = Object.entries(m.report.models).map(([n, v]) => `<tr><td>${esc(n)}</td><td>${v.c_index.toFixed(3)}</td><td class="${m.report.best === n ? 'best' : ''}">${v.mean_brier.toFixed(4)}${m.report.best === n ? ' (best)' : ''}</td></tr>`).join('');
+  }
+}
+$('#model-seg').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  try { await api('/models/activate', {body: {name: b.dataset.n}}); await loadModels(); refreshProbs(); loadCurves(); toast('Now using ' + b.dataset.n); }
+  catch (err) { toast(err.message); }
+});
+$('#train').onclick = async () => {
+  const btn = $('#train'); btn.disabled = true; btn.textContent = 'Training…';
+  try { await api('/models/train', {body: {}}); await loadModels(); refreshProbs(); loadCurves(); toast('Models trained. The best one is active.'); }
+  catch (e) { toast('Training failed: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Train survival models';
+};
+
+/* ---------- decision feed ---------- */
+function feedItem(d) {
+  const where = d.action === 'replicate' ? d.replica_node_ids.join('+') : d.target_node_id || 'later';
+  return `<div class="item"><span class="a">${esc(ACTIONS[d.action] || d.action)}</span><span class="r">${esc(where)}, ${esc(d.task_id)}</span><b style="color:${risk(d.p_complete)[0]}">${pct(d.p_complete)}%</b></div>`;
+}
+async function loadFeed() { const ds = await api('/decisions?limit=30'); if (ds.length) $('#feed').innerHTML = ds.map(feedItem).join(''); }
+function pushFeed(d) { const f = $('#feed'); if (!f.querySelector('.item')) f.innerHTML = ''; f.insertAdjacentHTML('afterbegin', feedItem(d)); while (f.children.length > 30) f.lastChild.remove(); }
+
+/* ---------- live connection ---------- */
+function setStatus(on, text) { $('#dot').classList.toggle('on', on); $('#status').textContent = text; }
+function connect() {
+  const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+  ws.onopen = () => setStatus(true, 'live');
+  ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.event === 'nodes') setNodes(m.data); else if (m.event === 'decision') pushFeed(m.data); };
+  ws.onclose = () => { setStatus(false, 'reconnecting'); setTimeout(connect, 3000); };
+  ws.onerror = () => ws.close();
+}
+async function boot() {
+  updateNeeds();
+  try { setNodes(await api('/nodes')); } catch (e) { setStatus(false, 'offline'); }
+  connect();
+  loadCurves(); setInterval(() => { if (!document.hidden) loadCurves(); }, 4000);
+  loadScenarios().catch(() => {}); loadModels().catch(() => {}); loadFeed().catch(() => {});
+}
+boot();
+</script>
+</body>
+</html>
