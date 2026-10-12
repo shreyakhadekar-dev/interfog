@@ -28,7 +28,7 @@ Four demo nodes start already running, so there is nothing to set up.
 3. Wait for the build, then open the `onrender.com` link. Health check: `/health`.
 
 No Blueprint? Create a **Web Service** with build command `pip install -r requirements.txt` and start command
-`uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+`uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips '*'`.
 State is kept in memory, so it resets when the free instance sleeps. That is fine for a demo.
 
 ## What is inside
